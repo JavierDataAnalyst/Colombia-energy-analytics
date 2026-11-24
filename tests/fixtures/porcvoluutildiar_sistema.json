@@ -1,0 +1,1 @@
+{"Metric":{"Id":"PorcVoluUtilDiar","Name":"Volumen Útil  diario % por Sistema","StartDate":"2026-11-01T00:00:00","EndDate":"2026-11-03T00:00:00"},"Items":[{"Date":"2026-11-01","DailyEntities":[{"Id":"Sistema","Value":"0.77590"}]},{"Date":"2026-11-02","DailyEntities":[{"Id":"Sistema","Value":"0.77870"}]},{"Date":"2026-11-03","DailyEntities":[{"Id":"Sistema","Value":"0.77837"}]}]}

@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: dim_date
+    columns:
+      - name: date_day
+        tests: [unique, not_null]
+  - name: dim_resource
+    columns:
+      - name: resource_code
+        tests: [unique, not_null]
+      - name: technology
+        tests: [not_null]
+  - name: fct_generation_by_resource_hourly
+    columns:
+      - name: resource_code
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_resource'), field: resource_code}
+      - name: hour_of_day
+        tests:
+          - accepted_values:
+              arguments: {values: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24], quote: false}
+  - name: fct_hydrology_daily
+    columns:
+      - name: date_day
+        tests: [unique, not_null]
+  - name: mtr_market_monthly
+    columns:
+      - name: year_month
+        tests: [unique, not_null]

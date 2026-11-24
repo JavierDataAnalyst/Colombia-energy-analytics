@@ -1,0 +1,7 @@
+colombia_energy:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: data/warehouse.duckdb
+      threads: 4

@@ -1,0 +1,47 @@
+name: Refresh data
+
+# Weekly: load new XM data, rebuild the model, run every data test, and rebuild the charts.
+# Landed snapshots are kept in the Actions cache so closed months are never downloaded twice.
+on:
+  schedule:
+    - cron: "0 11 * * 1"   # Mondays 06:00 Bogotá
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            data/landing
+            data/flat
+          key: xm-landing-${{ github.run_id }}
+          restore-keys: xm-landing-
+      - name: Ingest (layer 1)
+        run: python -m etl.ingest --start 2023-01-01
+      - name: Build and test the model (layers 2-3)
+        run: dbt build --project-dir dbt --profiles-dir dbt
+      - name: Build charts and key figures (layer 4)
+        run: python -m app.build_report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: |
+            docs/img/*.png
+            docs/key_figures.json
+            data/landing/_manifest.csv
+          retention-days: 30

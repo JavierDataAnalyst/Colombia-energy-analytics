@@ -1,0 +1,48 @@
+{
+  "period_complete_months": {
+    "from": "2023-01",
+    "to": "2026-10"
+  },
+  "peak_spot_price_month": {
+    "month": "2024-10",
+    "cop_kwh": 1560.0
+  },
+  "lowest_reservoir_month": {
+    "month": "2024-03",
+    "pct": 31.5
+  },
+  "corr_price_vs_reservoir_level": -0.18,
+  "corr_price_vs_inflows": -0.68,
+  "corr_price_vs_thermal_share": 0.85,
+  "median_price_by_inflow_band": [
+    {
+      "band": "Dry (<70 % of normal)",
+      "months": 12,
+      "median_cop_kwh": 681.0
+    },
+    {
+      "band": "Below normal (70\u2013100 %)",
+      "months": 21,
+      "median_cop_kwh": 523.0
+    },
+    {
+      "band": "Wet (\u2265100 %)",
+      "months": 13,
+      "median_cop_kwh": 224.0
+    }
+  ],
+  "peak_thermal_share_month": {
+    "month": "2024-04",
+    "pct": 46.6
+  },
+  "annual_demand_gwh": {
+    "2023": 81214.0,
+    "2024": 83308.0,
+    "2025": 84605.0,
+    "2026": 78817.0
+  },
+  "plants_without_attributes": {
+    "count": 14,
+    "gwh": 161.1
+  }
+}
