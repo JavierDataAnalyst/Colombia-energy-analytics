@@ -148,6 +148,70 @@ def key_figures(con) -> dict:
     }
 
 
+# ---------------------------------------------------------------- site data (docs/data/*.json)
+
+QUALITY_LABELS = {
+    "assert_system_hourly_grain_and_completeness": ("Completeness", "24 hours per day with demand, price and generation"),
+    "assert_no_gaps_in_days": ("Completeness", "No missing calendar days"),
+    "assert_values_in_valid_range": ("Validity", "Demand, price and reservoir level within valid ranges"),
+    "assert_generation_reconciles_with_system": ("Accuracy", "Plant-level generation reconciles with the system total (±0.5 %)"),
+    "assert_data_is_fresh": ("Timeliness", "Latest data no older than 7 days"),
+}
+
+
+def describe_generic_test(name):
+    """Readable label for dbt's generic tests (unique, not_null, relationships, accepted_values)."""
+    models = ["fct_generation_by_resource_hourly", "fct_hydrology_daily", "mtr_market_monthly", "dim_resource", "dim_date"]
+    model = next((m for m in models if m in name), "model")
+    column = name.split(model, 1)[-1].strip("_").split("__")[0] if model in name else ""
+    if name.startswith("unique_"):
+        return "Uniqueness", f"{column} is unique in {model}"
+    if name.startswith("not_null_"):
+        return "Completeness", f"{column} is never empty in {model}"
+    if name.startswith("relationships_"):
+        return "Consistency", f"Every {column} in {model} exists in its dimension"
+    if name.startswith("accepted_values_"):
+        return "Validity", f"{column} only takes allowed values in {model}"
+    return "Structure", name.replace("_", " ")
+
+
+def export_site_data(con, figures):
+    """Small JSON files for the project page. Read only from the certified metrics."""
+    data_dir = ROOT / "docs" / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    def dump(name, obj):
+        (data_dir / name).write_text(json.dumps(obj, ensure_ascii=False, default=str, separators=(",", ":")), encoding="utf-8")
+
+    monthly = con.sql(f"""select year_month,
+            round(demand_gwh, 1) as demand_gwh,
+            round(spot_price_weighted_cop_kwh, 1) as price,
+            round(inflows_vs_historical * 100, 1) as inflows_pct,
+            round(reservoir_share_end_of_month * 100, 1) as reservoir_pct
+        from {COMPLETE} order by year_month""").df()
+    mix = con.sql("""select year_month, technology, round(share_of_month * 100, 2) as share
+        from metrics.mtr_generation_mix_monthly order by year_month""").df()
+    hourly = con.sql("""select year, is_weekend, hour_of_day, round(avg_demand_mwh) as demand_mwh,
+        round(avg_spot_price_cop_kwh, 1) as price from metrics.mtr_hourly_profile order by 1, 2, 3""").df()
+    dump("monthly.json", monthly.to_dict(orient="records"))
+    dump("mix.json", mix.to_dict(orient="records"))
+    dump("hourly.json", hourly.to_dict(orient="records"))
+    dump("key_figures.json", figures)
+
+    # Data-quality panel: latest dbt test run, if available.
+    results_file = ROOT / "dbt" / "target" / "run_results.json"
+    if results_file.exists():
+        run = json.loads(results_file.read_text(encoding="utf-8"))
+        tests = []
+        for r in run["results"]:
+            if not r["unique_id"].startswith("test."):
+                continue
+            name = r["unique_id"].split(".")[2]
+            control, text = QUALITY_LABELS.get(name) or describe_generic_test(name)
+            tests.append({"name": name, "control": control, "description": text, "status": r["status"]})
+        dump("quality.json", {"run_at": run["metadata"]["generated_at"], "tests": tests})
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(DB), read_only=True)
@@ -155,6 +219,7 @@ def main():
     chart_generation_mix(con)
     chart_hourly_profile(con)
     figures = key_figures(con)
+    export_site_data(con, figures)
     (ROOT / "docs" / "key_figures.json").write_text(json.dumps(figures, indent=2, default=str), encoding="utf-8")
     print(json.dumps(figures, indent=2, default=str))
 

@@ -4,6 +4,8 @@
 [XM](https://www.xm.com.co/), the operator of Colombia's power market: 11 million hourly records from January 2023 to
 November 2026, modeled with dbt and tested at every layer.
 
+**🌐 Interactive page:** https://javierdataanalyst.github.io/Colombia-energy-analytics/
+
 ![The spot price follows the rain](docs/img/hydro_vs_price.png)
 
 ---

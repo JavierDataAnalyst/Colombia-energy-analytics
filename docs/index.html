@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Colombia Energy Analytics</title>
+  <meta name="description" content="What drives Colombia's electricity price? An analytics engineering project on XM public data, modeled with dbt and DuckDB.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M18 4 9 18h6l-2 10 10-15h-6z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#top"><span class="mark">⚡</span>Colombia Energy Analytics</a>
+  <nav>
+    <a href="#finding">Finding</a>
+    <a href="#mix">Generation</a>
+    <a href="#demand">Demand</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#quality">Quality</a>
+  </nav>
+  <button id="theme" class="icon-btn" aria-label="Toggle dark mode">🌙</button>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <p class="eyebrow">Analytics engineering · XM public data · 2023–2026</p>
+    <h1>What drives Colombia's <em>electricity price</em>?</h1>
+    <p class="lead">Hydro plants produce most of Colombia's power, so you might expect the price to follow how full the
+      reservoirs are. The data says something else: <b>the price follows the rain.</b></p>
+    <div class="kpis" id="kpis">
+      <div class="kpi"><span class="kpi-value" data-k="corr_inflows">–</span><span class="kpi-label">correlation of the spot price with hydro inflows</span></div>
+      <div class="kpi"><span class="kpi-value" data-k="corr_reservoir">–</span><span class="kpi-label">correlation with reservoir level: a weak signal</span></div>
+      <div class="kpi"><span class="kpi-value" data-k="ratio">–</span><span class="kpi-label">median price in dry months vs. wet months</span></div>
+      <div class="kpi"><span class="kpi-value">11.1 M</span><span class="kpi-label">hourly plant-level records, tested at every layer</span></div>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/JavierDataAnalyst/Colombia-energy-analytics">View the code on GitHub</a>
+      <a class="btn" href="#pipeline">How it is built</a>
+    </div>
+  </section>
+
+  <!-- ===== Finding 1 ===== -->
+  <section id="finding" class="block">
+    <div class="block-head">
+      <span class="num">01</span>
+      <div>
+        <h2>The spot price follows the rain, not the reservoirs</h2>
+        <p>Monthly demand-weighted spot price against two candidate signals. Switch between them and compare.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="segmented" role="tablist" aria-label="Signal">
+          <button role="tab" data-signal="inflows" aria-selected="true">Hydro inflows</button>
+          <button role="tab" data-signal="reservoir" aria-selected="false">Reservoir level</button>
+        </div>
+        <span class="corr" id="corr-label"></span>
+      </div>
+      <div class="chart tall"><canvas id="c-signal" aria-label="Spot price and hydro signal by month" role="img"></canvas></div>
+      <p class="note" id="signal-note"></p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Median spot price by hydrology</h3>
+        <p class="muted">Months grouped by inflows as a share of their historical mean.</p>
+        <div class="chart"><canvas id="c-bands" aria-label="Median spot price by inflow band" role="img"></canvas></div>
+      </div>
+      <div class="card memo">
+        <h3>Decision memo</h3>
+        <dl>
+          <dt>Question</dt><dd>When should a company that buys power at the spot price lock in a fixed-price contract?</dd>
+          <dt>Finding</dt><dd id="memo-finding"></dd>
+          <dt>Recommendation</dt><dd>Track <b>inflows vs. historical mean</b> as an early warning. Below 70 %, expect prices
+            around three times the wet-month level and review the contracting strategy. Reservoir level alone is a weak signal.</dd>
+          <dt>Caveat</dt><dd>Monthly, descriptive analysis. Correlation is not causation and this is not a price forecast.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Finding 2 ===== -->
+  <section id="mix" class="block">
+    <div class="block-head">
+      <span class="num">02</span>
+      <div>
+        <h2>Thermal plants fill the gap, and they set the price</h2>
+        <p id="mix-sub">Share of monthly generation by technology.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="chart tall"><canvas id="c-mix" aria-label="Generation mix by month" role="img"></canvas></div>
+      <p class="note" id="mix-note"></p>
+    </div>
+  </section>
+
+  <!-- ===== Demand ===== -->
+  <section id="demand" class="block">
+    <div class="block-head">
+      <span class="num">03</span>
+      <div>
+        <h2>Demand peaks between 7 and 8 p.m.</h2>
+        <p>Average hourly demand, weekdays vs. weekends.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <label class="select">Year <select id="year"></select></label>
+      </div>
+      <div class="chart"><canvas id="c-hourly" aria-label="Average hourly demand" role="img"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ===== Pipeline ===== -->
+  <section id="pipeline" class="block">
+    <div class="block-head">
+      <span class="num">04</span>
+      <div>
+        <h2>How it is built</h2>
+        <p>Four layers, each one only reading from the one before. Every figure on this page comes from layer 3.</p>
+      </div>
+    </div>
+    <ol class="layers">
+      <li>
+        <span class="tag">Layer 1 · Sources</span>
+        <h4>Raw, untouched, never overwritten</h4>
+        <p>Python calls the XM public API month by month. Each response is stored as received with its load timestamp.
+          A month with a missing day or hour is rejected whole, and every load is logged in a control manifest.</p>
+        <code>etl/ingest.py</code>
+      </li>
+      <li>
+        <span class="tag">Layer 2 · Model</span>
+        <h4>Star schema in dbt</h4>
+        <p>Facts by date × hour (system) and date × hour × plant, with date and plant dimensions.
+          Plants missing from XM's list go to an exceptions table instead of being dropped.</p>
+        <code>dbt/models/core</code>
+      </li>
+      <li>
+        <span class="tag">Layer 3 · Metrics</span>
+        <h4>Defined once, documented</h4>
+        <p>Demand-weighted spot price, inflows vs. historical mean, reservoir level, generation mix and hourly profile,
+          each with a card in the data dictionary.</p>
+        <code>dbt/models/metrics</code>
+      </li>
+      <li>
+        <span class="tag">Layer 4 · Product</span>
+        <h4>This page and the charts</h4>
+        <p>A script reads only the certified metrics and exports small JSON files. A weekly GitHub Actions job rebuilds everything.</p>
+        <code>app/build_report.py</code>
+      </li>
+    </ol>
+    <p class="stack"><b>Stack:</b> Python · DuckDB · dbt · GitHub Actions · Chart.js. No paid services.</p>
+  </section>
+
+  <!-- ===== Quality ===== -->
+  <section id="quality" class="block">
+    <div class="block-head">
+      <span class="num">05</span>
+      <div>
+        <h2>Data quality: every test can fail</h2>
+        <p id="quality-sub">Results of the latest dbt test run.</p>
+      </div>
+    </div>
+    <div class="card">
+      <ul class="tests" id="tests"></ul>
+      <p class="note">The accuracy test reconciles two independent XM publications, plant-level and system-level generation,
+        every day. If they disagree by more than 0.5 %, the build stops before any chart is published.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p><b>Javier Daza</b> · Production engineer working in data ·
+    <a href="https://github.com/JavierDataAnalyst/Colombia-energy-analytics">Code</a> ·
+    <a href="https://github.com/JavierDataAnalyst/Colombia-energy-analytics/blob/main/docs/data_dictionary.md">Data dictionary</a> ·
+    <a href="https://github.com/JavierDataAnalyst/Colombia-energy-analytics/blob/main/docs/decisions.md">Decision log</a> ·
+    <a href="https://javierdataanalyst.github.io/Issues-and-solutions/">Portfolio</a></p>
+  <p class="muted">Data: XM S.A. E.S.P. public API. Independent project, not affiliated with XM.</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="site.js"></script>
+</body>
+</html>

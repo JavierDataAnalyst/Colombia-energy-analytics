@@ -1,5 +1,5 @@
 .venv/
-data/
+/data/
 *.duckdb
 *.duckdb.wal
 dbt/target/
