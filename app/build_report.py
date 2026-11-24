@@ -198,6 +198,12 @@ def export_site_data(con, figures):
     dump("hourly.json", hourly.to_dict(orient="records"))
     dump("key_figures.json", figures)
 
+    # Technical view: the SQL of each certified metric and the models in each layer (lineage).
+    models_dir = ROOT / "dbt" / "models"
+    layers = {name: sorted(f.stem for f in (models_dir / name).glob("*.sql")) for name in ("staging", "core", "metrics")}
+    sql = {f.stem: f.read_text(encoding="utf-8").strip() for f in sorted((models_dir / "metrics").glob("*.sql"))}
+    dump("technical.json", {"layers": layers, "metrics_sql": sql})
+
     # Data-quality panel: latest dbt test run, if available.
     results_file = ROOT / "dbt" / "target" / "run_results.json"
     if results_file.exists():

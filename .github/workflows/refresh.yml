@@ -1,6 +1,7 @@
 name: Refresh data
 
-# Weekly: load new XM data, rebuild the model, run every data test, and rebuild the charts.
+# Weekly: load new XM data, rebuild the model, run every data test, rebuild the charts and
+# publish the page data (docs/). If any step or data test fails, nothing is published.
 # Landed snapshots are kept in the Actions cache so closed months are never downloaded twice.
 on:
   schedule:
@@ -8,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # only to commit the refreshed page data in docs/
 
 concurrency:
   group: refresh
@@ -37,6 +38,17 @@ jobs:
         run: dbt build --project-dir dbt --profiles-dir dbt
       - name: Build charts and key figures (layer 4)
         run: python -m app.build_report
+      - name: Publish refreshed page data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add docs/data docs/img docs/key_figures.json
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "Refresh data $(date -u +%F)"
+            git push
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: report
